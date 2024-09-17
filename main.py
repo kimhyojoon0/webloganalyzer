@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # 로그 파일 경로 설정
 log_file_path = 'archive/access_log_Jul95.txt'
@@ -36,3 +37,23 @@ df = pd.DataFrame(log_data, columns=['IP Address', 'Timestamp', 'Method', 'URL',
 # DataFrame 출력
 print(df.shape)
 print(df.head())
+
+# 시간대(Hour) 컬럼 추가
+df['Hour'] = df['Timestamp'].dt.hour
+
+# 시간대별 요청 횟수 계산
+hourly_requests = df.groupby('Hour').size()
+
+# 결과 출력
+print(hourly_requests)
+
+
+
+
+# 시간대별 요청 횟수 시각화
+hourly_requests.plot(kind='bar', color='skyblue')
+plt.xlabel('Hour of Day')
+plt.ylabel('Number of Requests')
+plt.title('Hourly Request Distribution')
+plt.grid(True)
+plt.show()
