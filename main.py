@@ -6,6 +6,57 @@ import matplotlib.pyplot as plt
 def main():
     # 로그 파일 경로 설정
     log_file_path = 'archive/access_log_Jul95.txt'
+    df = load_log_file(log_file_path)
+
+    min_timestamp = df['Timestamp'].min()
+    max_timestamp = df['Timestamp'].max()
+
+    print("시작일시:", min_timestamp)
+    print("종료일시:", max_timestamp)
+    print("Count  :", df.shape[0])
+
+    # DataFrame 출력
+    # print(df.shape[0])
+    print(df.head())
+
+
+    filter_df = filter_top_count(df, 'URL', 20)
+    graph_with_percentage('TOP_20 URL Count', 'URL', filter_df['Request Count'], filter_df['Percentage'])
+    
+    
+    # 시간 단위로 요청 횟수를 계산 (Timestamp 컬럼을 기준으로)
+    hourly_requests, hourly_percentage = calculate_and_graph_time_unit(df, 'hour')
+    graph_with_percentage('Hour Count', 'Hour', hourly_requests, hourly_percentage)
+    
+    minutely_requests, minutely_percentage = calculate_and_graph_time_unit(df, 'minute')
+    graph_with_percentage('Minute Count', 'Minute', minutely_requests, minutely_percentage)
+
+    plt.show()
+    
+# 함수 정의: Day, Hour, Minute 단위로 모듈화
+def calculate_and_graph_time_unit(df, time_unit):
+    # 주어진 단위로 요청 횟수를 계산
+    time_requests = df['Timestamp'].dt.__getattribute__(time_unit).value_counts().sort_index()
+
+    # 각 단위별 요청 횟수가 전체에서 차지하는 비율 계산
+    total_requests = time_requests.sum()
+    percentage_requests = (time_requests / total_requests) * 100
+    
+    return time_requests, percentage_requests
+
+def filter_top_count(df, field, count):
+    field_requests = df[field].value_counts()
+    top_count_requests = field_requests.head(count)
+    total_requests = field_requests.sum()
+    percentage_top_count = (top_count_requests / total_requests) * 100
+    combined_df = pd.DataFrame({
+        'Request Count': top_count_requests,
+        'Percentage': percentage_top_count
+    })
+
+    return combined_df
+
+def load_log_file(log_file_path):
 
     # 로그 파일의 각 줄을 파싱하기 위한 정규 표현식
     log_pattern = r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) - - \[(.*?)\] "(.*?) (.*?) (.*?)" (\d{3}) (\d+)'
@@ -35,53 +86,9 @@ def main():
     # DataFrame 생성
     df = pd.DataFrame(log_data, columns=['IP Address', 'Timestamp', 'Method', 'URL', 'Status Code', 'Response Size'])
 
+    return df
 
-
-    min_timestamp = df['Timestamp'].min()
-    max_timestamp = df['Timestamp'].max()
-
-    print("시작일시:", min_timestamp)
-    print("종료일시:", max_timestamp)
-    print("Count  :", df.shape[0])
-
-    # DataFrame 출력
-    # print(df.shape[0])
-    print(df.head())
-
-    # 분류  컬럼 추가
-
-    df['Day'] = df['Timestamp'].dt.day
-    df['Hour'] = df['Timestamp'].dt.hour
-    df['Minute'] = df['Timestamp'].dt.minute
-
-    #  횟수 계산
-    url_requests = df['URL'].value_counts()
-    day_requests = df.groupby('Day').size()
-    hour_requests = df.groupby('Hour').size()
-    minute_requests = df.groupby('Minute').size()
-
-    # 상위 10%의 URL을 필터링
-    top_10_percent_threshold = url_requests.quantile(0.9)
-    filtered_url_requests_top_10_percent = url_requests[url_requests >= top_10_percent_threshold]
-
-    # 상위 20개의 URL을 필터링하여 출력
-    top_20_url_requests = url_requests.head(20)
-
-    # 상위 20개의 각 URL이 전체에서 차지하는 비율 계산
-    total_requests = url_requests.sum()
-    percentage_top_20 = (top_20_url_requests / total_requests) * 100
-
-
-
-    graph('TOP_20 URL Count', top_20_url_requests)
-    graph('TOP_20 URL Percent', percentage_top_20)
-    graph_with_percentage('TOP_20 URL Count', top_20_url_requests, percentage_top_20)
-    # graph('Day', day_requests)
-    # graph('Hour', hour_requests)
-    # graph('Minute', minute_requests)
-    plt.show()
-
-def graph_with_percentage(name, counts, percentages):
+def graph_with_percentage(name, xlabel, counts, percentages):
     # 새로운 figure 생성
     plt.figure()
 
@@ -89,7 +96,7 @@ def graph_with_percentage(name, counts, percentages):
     ax = counts.plot(kind='bar', color='skyblue')
 
     # 그래프 레이블 설정
-    plt.xlabel(f'{name}')
+    plt.xlabel(f'{xlabel}')
     plt.ylabel('Number of Requests')
     plt.title(f'{name} Request Distribution')
     
